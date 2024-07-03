@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-deployment
+  labels:
+    app: user-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-user
+  template:
+    metadata:
+      labels:
+        app: my-user
+    spec:
+      containers:
+      - name: my-user
+        image: my-user:0.0.1
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://db-service:5432/user
+        - name: SPRING_DATASOURCE_USERNAME
+          value: postgres
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: postgres
+        - name: OTEL_SERVICE_NAME
+          value: user
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://grafana-service.monitoring.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: grpc
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: service.name=user,service.instance.id=user
+        - name: OTEL_METRICS_EXPORTER
+          value: otlp
+        - name: OTEL_TRACES_EXPORTER
+          value: otlp
+        - name: OTEL_LOGS_EXPORTER
+          value: otlp
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '500'
+        - name: OTEL_BSP_SCHEDULE_DELAY
+          value: '500'
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-deployment
+  namespace: monitoring
+  labels:
+    app: grafana-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-grafana
+  template:
+    metadata:
+      labels:
+        app: my-grafana
+    spec:
+      containers:
+      - name: grafana
+        image: my-grafana-lgtm:0.0.1
+        env:
+        - name: GF_SERVER_ROOT_URL
+          value: http://grafana.example.com:3000
+        - name: GF_AUTH_GOOGLE_ENABLED
+          value: "false"
+        - name: GF_AUTH_GOOGLE_ALLOW_SIGN_UP
+          value: "true"
+        - name: GF_AUTH_GOOGLE_CLIENT_ID
+          value: <CLIENT_ID>
+        - name: GF_AUTH_GOOGLE_CLIENT_SECRET
+          value: <CLIENT_SECRET>
+        - name: GF_AUTH_GOOGLE_AUTH_URL
+          value: https://accounts.google.com/o/oauth2/v2/auth
+        - name: GF_AUTH_GOOGLE_TOKEN_URL
+          value: https://oauth2.googleapis.com/token
+        - name: GF_AUTH_GOOGLE_API_URL
+          value: https://openidconnect.googleapis.com/v1/userinfo
+        - name: GF_AUTH_GOOGLE_ALLOWED_DOMAINS
+          value: gmail.com
+        ports:
+        - containerPort: 3000
+        - containerPort: 4317
+        - containerPort: 4318
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1024Mi
+          limits:
+            cpu: "1"
+            memory: 2048Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+  labels:
+    app: db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-db
+  template:
+    metadata:
+      labels:
+        app: my-db
+    spec:
+      containers:
+      - name: database
+        image: my-db:0.0.1
+        env:
+        - name: POSTGRES_DB
+          value: user
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        ports:
+        - containerPort: 5432
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1024Mi
+          limits:
+            cpu: "1"
+            memory: 2048Mi
